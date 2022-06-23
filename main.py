@@ -14,7 +14,8 @@ ICS_CREATOR = os.getenv("ICS_CREATOR", "elphi-calendar")
 app = Flask(__name__)
 session = requests_cache.CachedSession(
     'events',
-    expire_after=timedelta(days=1)
+    expire_after=timedelta(days=1),
+    backend='memory'
 )
 
 
