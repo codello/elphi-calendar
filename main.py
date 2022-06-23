@@ -19,7 +19,7 @@ session = requests_cache.CachedSession(
 )
 
 
-@app.route(f"/<user>")
+@app.route(f"/merkliste/<user>")
 def merkliste(user: str):
     response = requests.get(f"https://merkliste.elbphilharmonie.de/api/{user}")
     if response.status_code == 404:
@@ -49,3 +49,8 @@ def merkliste(user: str):
                 event["description_long_de"])
         ))
     return Response(calendar, mimetype="text/calendar")
+
+
+@app.route("/health")
+def health():
+    return "OK"

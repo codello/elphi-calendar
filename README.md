@@ -16,7 +16,7 @@ docker run -p 8080:8080 ghcr.io/codello/elphi-calendar
 This will run the app on port 8080. You can now access your calendar at
 
 ```
-http://localhost:8080/<user-id>
+http://localhost:8080/merkliste/<user-id>
 ```
 
 See the next paragraph on how to find your user ID.
