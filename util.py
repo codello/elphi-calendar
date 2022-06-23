@@ -1,9 +1,27 @@
-from html2text import html2text
+from dataclasses import dataclass
+
+from ics import Calendar
 
 
-def clean_location(location: str) -> str:
-    return location.replace("<strong>", "").replace("</strong>", ":")
+class ElphiEvent:
+    __slots__ = ["data", "calendar"]
 
+    def __init__(self, data: dict):
+        self.data = data
+        self.calendar: Calendar = Calendar()
 
-def clean_description(desc: str) -> str:
-    return html2text(desc, bodywidth=0).strip()
+    @property
+    def title_de(self) -> str:
+        return self.data["title_de"]
+
+    @property
+    def subtitle_de(self) -> str:
+        return self.data["subtitle_de"]
+
+    @property
+    def website_url(self) -> str:
+        return self.data["website_url"]
+
+    @property
+    def ics_url(self) -> str:
+        return f"{self.website_url}.ics"
