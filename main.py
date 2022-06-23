@@ -26,7 +26,7 @@ def merkliste(user: str):
         abort(404)
     favorites = response.json()
     events = []
-    for event_id in favorites["events"].keys():
+    for event_id in favorites["events"]:
         response = session.get(
             f"https://www.elbphilharmonie.de/de/api/booking/evis/{event_id}/"
         )
