@@ -10,4 +10,5 @@ RUN pip install -r requirements.txt
 
 COPY *.py /app
 
+EXPOSE 8080
 CMD ["waitress-serve", "main:app"]
