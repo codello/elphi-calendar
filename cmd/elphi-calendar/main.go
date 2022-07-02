@@ -24,8 +24,8 @@ func main() {
 	}
 
 	// Configure the App
-	log.SetPrefix("[INFO]")
-	merkliste.ErrorLogger.SetPrefix("[ERROR]")
+	log.SetPrefix("[INFO] ")
+	merkliste.ErrorLogger.SetPrefix("[ERROR] ")
 	cache := merkliste.NewCachedMerkliste(options.CacheTTL)
 	cache.Name = options.Name
 	cache.ProductID = options.Creator
@@ -41,6 +41,11 @@ func main() {
 		fmt.Fprintln(w, "OK")
 	})
 
-	log.Println("Running on " + options.BindAddress)
-	log.Fatal(http.ListenAndServe(options.BindAddress, nil))
+	if options.CertFile != "" && options.KeyFile != "" {
+		log.Println("Running on " + options.BindAddress + " (TLS on)")
+		log.Fatal(http.ListenAndServeTLS(options.BindAddress, options.CertFile, options.KeyFile, nil))
+	} else {
+		log.Println("Running on " + options.BindAddress + " (TLS off)")
+		log.Fatal(http.ListenAndServe(options.BindAddress, nil))
+	}
 }

@@ -38,3 +38,15 @@ The Elbphilharmonie favorite lists of every user is accessible without authentic
 ## Caching
 
 The `elphi-calendar` will cache event details (but not your favorites list) for one day. This dramatically reduces the number of API calls and increases update speed. The disadvantage is that changes to events will only become visible after up to a day.
+
+## Building the Project
+
+This project is written in Go. To compile it run
+
+```shell
+# Install Dependencies
+go mod download
+# Compile the package
+go build ./cmd/elphi-calendar
+```
+

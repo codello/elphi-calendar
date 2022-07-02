@@ -28,7 +28,6 @@ func (h *Handler) RegisterMetrics() {
 			"cache": "events",
 		},
 	))
-	log.Println()
 	prometheus.MustRegister(metrics.NewCacheCollector(
 		h.Merkliste.ICSCache, nil, prometheus.Labels{
 			"cache": "ics",

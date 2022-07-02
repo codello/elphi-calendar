@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -47,20 +46,21 @@ type ElphiEvent struct {
 // specified ID. This function returns a list of event IDs.
 func GetMerkliste(userID string) ([]string, error) {
 	resp, err := http.Get("https://merkliste.elbphilharmonie.de/api/" + userID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 	if resp.StatusCode == 404 {
 		return nil, ErrInvalidUserID
-	}
-	if err != nil {
-		return nil, err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
 	}
 	var merkliste struct {
 		Events map[string]interface{} `json:"events"`
 	}
-	err = json.Unmarshal(body, &merkliste)
+	decoder := json.NewDecoder(resp.Body)
+	err = decoder.Decode(&merkliste)
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +83,8 @@ func GetElphiEvent(eventID string) (*ElphiEvent, error) {
 		return nil, err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 	}()
 	decoder := json.NewDecoder(resp.Body)
 	event := &ElphiEvent{}
@@ -104,8 +104,8 @@ func GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
 		return nil, err
 	}
 	defer func() {
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
 	}()
 	calendar, err := ics.ParseCalendar(resp.Body)
 	if err != nil {

@@ -18,4 +18,4 @@ vendor/
 go.work
 
 # Binaries
-elphi-calendar
+/elphi-calendar

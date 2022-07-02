@@ -1,14 +1,19 @@
-FROM python:alpine
+# syntax=docker/dockerfile:1
+FROM golang:1.18-alpine AS builder
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV CGO_ENABLED=0
+WORKDIR /build
 
-WORKDIR /app
-RUN pip install --upgrade pip
-COPY requirements.txt /app
-RUN pip install -r requirements.txt
+RUN apk add ca-certificates
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN go install ./cmd/elphi-calendar
 
-COPY *.py /app
 
+FROM scratch
+
+COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+COPY --from=builder /go/bin/elphi-calendar /elphi-calendar
 EXPOSE 8080
-CMD ["waitress-serve", "main:app"]
+ENTRYPOINT ["/elphi-calendar"]
