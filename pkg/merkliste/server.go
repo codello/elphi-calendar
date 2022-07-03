@@ -51,6 +51,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, http.StatusText(http.StatusServiceUnavailable))
+		return
 	}
 	w.Header().Set("Content-Type", "text/calendar")
 	cal.SerializeTo(w)
