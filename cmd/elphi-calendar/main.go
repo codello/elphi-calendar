@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -29,16 +28,15 @@ func main() {
 	cache := merkliste.NewCachedMerkliste(options.CacheTTL)
 	cache.Name = options.Name
 	cache.ProductID = options.Creator
+	cache.RegisterMetrics(nil, nil)
 	cache.StartCacheExpiration()
-	handler := &merkliste.Handler{Merkliste: cache}
-	handler.RegisterMetrics()
 
 	// Setup router
-	http.Handle("/merkliste/", handler)
+	http.Handle("/merkliste/", &merkliste.CalendarHandler{Merkliste: cache, Prefix: "/merkliste/"})
+	http.Handle("/events/", &merkliste.EventHandler{Merkliste: cache, Prefix: "/events/"})
 	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/health", func(w http.ResponseWriter, req *http.Request) {
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprintln(w, "OK")
+		w.WriteHeader(http.StatusNoContent)
 	})
 
 	if options.CertFile != "" && options.KeyFile != "" {

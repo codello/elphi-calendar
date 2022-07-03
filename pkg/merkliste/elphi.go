@@ -11,12 +11,18 @@ import (
 
 	ics "github.com/arran4/golang-ical"
 	ttlcache "github.com/jellydator/ttlcache/v3"
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/codello/elphi-calendar/pkg/metrics"
 )
 
 var (
 	// ErrInvalidUserID indicates that the requested user ID is formatted
 	// incorrectly or does not exist.
 	ErrInvalidUserID = errors.New("invalid user id")
+	// ErrInvalidEventID indicates that the requested event ID is formatted
+	// incorrectly or does not exist.
+	ErrInvalidEventID = errors.New("invalid event id")
 	// ErrNoEvents indicates that an ics URL did return an empty calendar.
 	ErrNoEvents = errors.New("invalid ics file (no events)")
 	// ErrMultipleEvents indicates that an ics URL did return multiple events
@@ -53,7 +59,7 @@ func GetMerkliste(userID string) ([]string, error) {
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
-	if resp.StatusCode == 404 {
+	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrInvalidUserID
 	}
 	var merkliste struct {
@@ -86,6 +92,9 @@ func GetElphiEvent(eventID string) (*ElphiEvent, error) {
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, ErrInvalidEventID
+	}
 	decoder := json.NewDecoder(resp.Body)
 	event := &ElphiEvent{}
 	err = decoder.Decode(event)
@@ -135,8 +144,8 @@ func fixupEvent(icsEvent *ics.VEvent, elphiEvent *ElphiEvent) {
 // the user with the specified ID.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetCalendar(userID string) (*ics.Calendar, error) {
-	cal := createCalendar()
+func GetCalendar(userID string, productID string, name string) (*ics.Calendar, error) {
+	cal := newCalendar(productID, name)
 	merkliste, err := GetMerkliste(userID)
 	if err != nil {
 		return nil, err
@@ -157,15 +166,14 @@ func GetCalendar(userID string) (*ics.Calendar, error) {
 	return cal, nil
 }
 
-// createCalendar is a helper function that creates an iCal calendar with some
+// newCalendar is a helper function that creates an iCal calendar with some
 // pre-filled config options.
-func createCalendar() *ics.Calendar {
-	cal := ics.NewCalendar()
+func newCalendar(productID string, name string) *ics.Calendar {
+	cal := ics.NewCalendarFor(productID)
 	cal.SetMethod(ics.MethodPublish)
 	cal.SetCalscale("GREGORIAN")
-	cal.SetProductId("Elbphilharomie Merkliste")
-	cal.SetName("Elbphilharomie Merkliste")
-	cal.SetXWRCalName("Elbphilharomie Merkliste")
+	cal.SetName(name)
+	cal.SetXWRCalName(name)
 	return cal
 }
 
@@ -209,6 +217,20 @@ func (m *CachedMerkliste) StopCacheExpiration() {
 	m.ICSCache.Stop()
 }
 
+// RegisterMetrics adds caching metrics to the global prometheus registry.
+func (m *CachedMerkliste) RegisterMetrics(variableLabels []string, staticLabels prometheus.Labels) {
+	eventLabels := prometheus.Labels{}
+	icsLabels := prometheus.Labels{}
+	for k, v := range staticLabels {
+		eventLabels[k] = v
+		icsLabels[k] = v
+	}
+	eventLabels["cache"] = "events"
+	icsLabels["cache"] = "ics"
+	prometheus.MustRegister(metrics.NewCacheCollector(m.EventCache, variableLabels, eventLabels))
+	prometheus.MustRegister(metrics.NewCacheCollector(m.ICSCache, variableLabels, icsLabels))
+}
+
 // GetElphiEvent performs a cached request for the specified event. Behind the
 // scenes this method uses the GetElphiEvent function.
 func (m *CachedMerkliste) GetElphiEvent(eventID string) (*ElphiEvent, error) {
@@ -240,15 +262,14 @@ func (m *CachedMerkliste) GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
 // GetCalendar creates an iCal calendar with the merkliste events of the
 // specified user. This works similarly to the GetCalendar function.
 func (m *CachedMerkliste) GetCalendar(userID string) (*ics.Calendar, error) {
-	cal := createCalendar()
-	cal.SetProductId(m.ProductID)
-	cal.SetName(m.Name)
-	cal.SetXWRCalName(m.Name)
-	cal.SetRefreshInterval("P" + strings.ToUpper(m.TTL.String()))
+	cal := m.newCalendar()
 	merkliste, err := GetMerkliste(userID)
 	if err != nil {
 		return nil, err
 	}
+
+	// Unfortunately we cannot parallelize this as the Elphi API locks up at too
+	// many parallel requests.
 	var elphiEvent *ElphiEvent
 	var icsEvent *ics.VEvent
 	for _, eventID := range merkliste {
@@ -263,4 +284,12 @@ func (m *CachedMerkliste) GetCalendar(userID string) (*ics.Calendar, error) {
 		cal.AddVEvent(icsEvent)
 	}
 	return cal, nil
+}
+
+// newCalendar creates a new calendar object using the properties of the
+// merkliste.
+func (m *CachedMerkliste) newCalendar() *ics.Calendar {
+	cal := newCalendar(m.ProductID, m.Name)
+	cal.SetRefreshInterval("P" + strings.ToUpper(m.TTL.String()))
+	return cal
 }

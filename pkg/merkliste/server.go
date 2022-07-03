@@ -2,57 +2,68 @@ package merkliste
 
 import (
 	"errors"
-	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
 	"log"
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/codello/elphi-calendar/pkg/metrics"
 )
 
 // The ErrorLogger is used to log errors.
 var ErrorLogger = log.New(os.Stdout, "", log.LstdFlags)
 
-// Handler provides an HTTP endpoint for the merkliste calendar. This implements
-// http.Handler.
-type Handler struct {
+// CalendarHandler provides an HTTP endpoint for the merkliste calendar. This
+// implements http.Handler.
+type CalendarHandler struct {
+	Prefix    string
 	Merkliste *CachedMerkliste
 }
 
-// RegisterMetrics adds caching metrics to the global prometheus registry.
-func (h *Handler) RegisterMetrics() {
-	prometheus.MustRegister(metrics.NewCacheCollector(
-		h.Merkliste.EventCache, nil, prometheus.Labels{
-			"cache": "events",
-		},
-	))
-	prometheus.MustRegister(metrics.NewCacheCollector(
-		h.Merkliste.ICSCache, nil, prometheus.Labels{
-			"cache": "ics",
-		},
-	))
-}
-
 // ServeHTTP implements an iCal HTTP endpoint providing events from a merkliste.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h *CalendarHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	components := strings.Split(req.URL.Path, "/")
 	userID := strings.TrimSuffix(components[len(components)-1], ".ics")
 	cal, err := h.Merkliste.GetCalendar(userID)
-	if err != nil && errors.Is(err, ErrInvalidUserID) {
-		w.WriteHeader(http.StatusNotFound)
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, "Invalid User ID: "+userID)
+	if errors.Is(err, ErrInvalidUserID) {
+		http.Error(w, "Invalid User ID: "+userID, http.StatusNotFound)
 		return
 	}
 	if err != nil {
 		ErrorLogger.Println(err)
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, http.StatusText(http.StatusServiceUnavailable))
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
+	w.Header().Set("Content-Type", "text/calendar")
+	cal.SerializeTo(w)
+}
+
+// EventHandler provides an HTTP endpoint for a calendar containing a single
+// event. This implements http.Handler.
+type EventHandler struct {
+	Prefix    string
+	Merkliste *CachedMerkliste
+}
+
+// ServeHTTP implements an iCal HTTP endpoint providing single Elphi events.
+func (h *EventHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	eventID := strings.TrimPrefix(req.URL.Path, h.Prefix)
+	elphiEvent, err := h.Merkliste.GetElphiEvent(eventID)
+	if errors.Is(err, ErrInvalidEventID) {
+		http.Error(w, "Invalid Event ID: "+eventID, http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		ErrorLogger.Println(err)
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	}
+	icsEvent, err := h.Merkliste.GetICSEvent(elphiEvent)
+	if err != nil {
+		ErrorLogger.Println(err)
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	}
+	cal := h.Merkliste.newCalendar()
+	cal.AddVEvent(icsEvent)
 	w.Header().Set("Content-Type", "text/calendar")
 	cal.SerializeTo(w)
 }
