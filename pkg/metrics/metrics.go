@@ -17,14 +17,14 @@ type CacheCollector[K comparable, V any] struct {
 
 // NewCacheCollector creates a new CacheCollector for the specified cache. All
 // metrics use the supplied variable and constant labels.
-func NewCacheCollector[K comparable, V any](cache *ttlcache.Cache[K, V], variableLabels []string, constLabels prometheus.Labels) *CacheCollector[K, V] {
+func NewCacheCollector[K comparable, V any](cache *ttlcache.Cache[K, V], prefix string, variableLabels []string, constLabels prometheus.Labels) *CacheCollector[K, V] {
 	return &CacheCollector[K, V]{
 		cache:            cache,
-		sizeMetric:       prometheus.NewDesc("cache_size", "Current size of the cache", variableLabels, constLabels),
-		insertionsMetric: prometheus.NewDesc("cache_insertions", "Number of insertions into the cache", variableLabels, constLabels),
-		hitsMetric:       prometheus.NewDesc("cache_hits", "Number of cache hits", variableLabels, constLabels),
-		missesMetric:     prometheus.NewDesc("cache_misses", "Number of cache misses", variableLabels, constLabels),
-		evictionsMetric:  prometheus.NewDesc("cache_evictions", "Number of cache evictions", variableLabels, constLabels),
+		sizeMetric:       prometheus.NewDesc(prefix+"cache_size", "Current size of the cache", variableLabels, constLabels),
+		insertionsMetric: prometheus.NewDesc(prefix+"cache_insertions", "Number of insertions into the cache", variableLabels, constLabels),
+		hitsMetric:       prometheus.NewDesc(prefix+"cache_hits", "Number of cache hits", variableLabels, constLabels),
+		missesMetric:     prometheus.NewDesc(prefix+"cache_misses", "Number of cache misses", variableLabels, constLabels),
+		evictionsMetric:  prometheus.NewDesc(prefix+"cache_evictions", "Number of cache evictions", variableLabels, constLabels),
 	}
 }
 

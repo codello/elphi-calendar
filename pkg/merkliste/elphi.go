@@ -227,8 +227,8 @@ func (m *CachedMerkliste) RegisterMetrics(variableLabels []string, staticLabels 
 	}
 	eventLabels["cache"] = "events"
 	icsLabels["cache"] = "ics"
-	prometheus.MustRegister(metrics.NewCacheCollector(m.EventCache, variableLabels, eventLabels))
-	prometheus.MustRegister(metrics.NewCacheCollector(m.ICSCache, variableLabels, icsLabels))
+	prometheus.MustRegister(metrics.NewCacheCollector(m.EventCache, "merkliste_", variableLabels, eventLabels))
+	prometheus.MustRegister(metrics.NewCacheCollector(m.ICSCache, "merkliste_", variableLabels, icsLabels))
 }
 
 // GetElphiEvent performs a cached request for the specified event. Behind the
