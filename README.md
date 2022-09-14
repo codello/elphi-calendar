@@ -3,7 +3,7 @@
 ![Docker Image](https://github.com/codello/elphi-calendar/actions/workflows/build.yml/badge.svg)
 ![MIT License](https://img.shields.io/github/license/codello/elphi-calendar)
 
-This simple python server serves an ICS version of your favorites for the [Elbphilharmonie](http://elbphilharmonie.de).
+This simple Go server generates an ICS version of your favorites for the [Elbphilharmonie](http://elbphilharmonie.de).
 
 ## Quick Start
 
