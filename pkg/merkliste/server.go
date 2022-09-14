@@ -1,6 +1,7 @@
 package merkliste
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -20,9 +21,13 @@ type CalendarHandler struct {
 
 // ServeHTTP implements an iCal HTTP endpoint providing events from a merkliste.
 func (h *CalendarHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	components := strings.Split(req.URL.Path, "/")
 	userID := strings.TrimSuffix(components[len(components)-1], ".ics")
-	cal, err := h.Merkliste.GetCalendar(userID)
+	cal, err := h.Merkliste.GetCalendar(ctx, userID)
+	if errors.Is(err, context.Canceled) {
+		return
+	}
 	if errors.Is(err, ErrInvalidUserID) {
 		http.Error(w, "Invalid User ID: "+userID, http.StatusNotFound)
 		return
@@ -45,8 +50,12 @@ type EventHandler struct {
 
 // ServeHTTP implements an iCal HTTP endpoint providing single Elphi events.
 func (h *EventHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
 	eventID := strings.TrimPrefix(req.URL.Path, h.Prefix)
-	elphiEvent, err := h.Merkliste.GetElphiEvent(eventID)
+	elphiEvent, err := h.Merkliste.GetElphiEvent(ctx, eventID)
+	if errors.Is(err, context.Canceled) {
+		return
+	}
 	if errors.Is(err, ErrInvalidEventID) {
 		http.Error(w, "Invalid Event ID: "+eventID, http.StatusNotFound)
 		return
@@ -56,7 +65,10 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
-	icsEvent, err := h.Merkliste.GetICSEvent(elphiEvent)
+	icsEvent, err := h.Merkliste.GetICSEvent(ctx, elphiEvent)
+	if errors.Is(err, context.Canceled) {
+		return
+	}
 	if err != nil {
 		ErrorLogger.Println(err)
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)

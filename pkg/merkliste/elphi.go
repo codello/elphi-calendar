@@ -1,6 +1,7 @@
 package merkliste
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -50,14 +51,18 @@ type ElphiEvent struct {
 
 // GetMerkliste returns the merkliste (favorites list) of the user with the
 // specified ID. This function returns a list of event IDs.
-func GetMerkliste(userID string) ([]string, error) {
-	resp, err := http.Get("https://merkliste.elbphilharmonie.de/api/" + userID)
+func GetMerkliste(ctx context.Context, userID string) ([]string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://merkliste.elbphilharmonie.de/api/"+userID, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrInvalidUserID
@@ -83,14 +88,18 @@ func GetMerkliste(userID string) ([]string, error) {
 // Elbphilharmonie API.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetElphiEvent(eventID string) (*ElphiEvent, error) {
-	resp, err := http.Get("https://www.elbphilharmonie.de/de/api/booking/evis/" + url.PathEscape(eventID) + "/")
+func GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.elbphilharmonie.de/de/api/booking/evis/"+url.PathEscape(eventID)+"/", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, ErrInvalidEventID
@@ -107,14 +116,18 @@ func GetElphiEvent(eventID string) (*ElphiEvent, error) {
 // GetICSEvent fetches the iCal event for the specified event.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
-	resp, err := http.Get(event.WebsiteURL + ".ics")
+func GetICSEvent(ctx context.Context, event *ElphiEvent) (*ics.VEvent, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, event.WebsiteURL+".ics", nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
-		io.Copy(io.Discard, resp.Body)
-		resp.Body.Close()
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
 	}()
 	calendar, err := ics.ParseCalendar(resp.Body)
 	if err != nil {
@@ -135,6 +148,9 @@ func GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
 // fixupEvent performs some cleanup operations on an event returned by the
 // Elbphilharmonie to make for a nicer formatting.
 func fixupEvent(icsEvent *ics.VEvent, elphiEvent *ElphiEvent) {
+	id := icsEvent.GetProperty(ics.ComponentPropertyUniqueId).Value
+	icsEvent.SetProperty(ics.ComponentPropertyUniqueId, "custom-"+id)
+	println(icsEvent.GetProperty(ics.ComponentPropertyUniqueId).Value)
 	icsEvent.SetSummary(elphiEvent.Subtitle)
 	description := icsEvent.GetProperty(ics.ComponentPropertyDescription).Value
 	icsEvent.SetDescription(elphiEvent.Title + "\n\n" + strings.ReplaceAll(description, "\\n", "\n"))
@@ -144,20 +160,20 @@ func fixupEvent(icsEvent *ics.VEvent, elphiEvent *ElphiEvent) {
 // the user with the specified ID.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetCalendar(userID string, productID string, name string) (*ics.Calendar, error) {
+func GetCalendar(ctx context.Context, userID string, productID string, name string) (*ics.Calendar, error) {
 	cal := newCalendar(productID, name)
-	merkliste, err := GetMerkliste(userID)
+	merkliste, err := GetMerkliste(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	var elphiEvent *ElphiEvent
 	var icsEvent *ics.VEvent
 	for _, eventID := range merkliste {
-		elphiEvent, err = GetElphiEvent(eventID)
+		elphiEvent, err = GetElphiEvent(ctx, eventID)
 		if err != nil {
 			return nil, err
 		}
-		icsEvent, err = GetICSEvent(elphiEvent)
+		icsEvent, err = GetICSEvent(ctx, elphiEvent)
 		if err != nil {
 			return nil, err
 		}
@@ -233,11 +249,11 @@ func (m *CachedMerkliste) RegisterMetrics(variableLabels []string, staticLabels 
 
 // GetElphiEvent performs a cached request for the specified event. Behind the
 // scenes this method uses the GetElphiEvent function.
-func (m *CachedMerkliste) GetElphiEvent(eventID string) (*ElphiEvent, error) {
+func (m *CachedMerkliste) GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
 	if item := m.EventCache.Get(eventID); item != nil {
 		return item.Value(), nil
 	}
-	event, err := GetElphiEvent(eventID)
+	event, err := GetElphiEvent(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -247,11 +263,11 @@ func (m *CachedMerkliste) GetElphiEvent(eventID string) (*ElphiEvent, error) {
 
 // GetICSEvent performs a cached request for the specified ICS file. Behind the
 // scenes this method uses the GetICSEvent function.
-func (m *CachedMerkliste) GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
+func (m *CachedMerkliste) GetICSEvent(ctx context.Context, event *ElphiEvent) (*ics.VEvent, error) {
 	if item := m.ICSCache.Get(event.ID); item != nil {
 		return item.Value(), nil
 	}
-	icsEvent, err := GetICSEvent(event)
+	icsEvent, err := GetICSEvent(ctx, event)
 	if err != nil {
 		return nil, err
 	}
@@ -261,9 +277,9 @@ func (m *CachedMerkliste) GetICSEvent(event *ElphiEvent) (*ics.VEvent, error) {
 
 // GetCalendar creates an iCal calendar with the merkliste events of the
 // specified user. This works similarly to the GetCalendar function.
-func (m *CachedMerkliste) GetCalendar(userID string) (*ics.Calendar, error) {
+func (m *CachedMerkliste) GetCalendar(ctx context.Context, userID string) (*ics.Calendar, error) {
 	cal := m.newCalendar()
-	merkliste, err := GetMerkliste(userID)
+	merkliste, err := GetMerkliste(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -273,11 +289,11 @@ func (m *CachedMerkliste) GetCalendar(userID string) (*ics.Calendar, error) {
 	var elphiEvent *ElphiEvent
 	var icsEvent *ics.VEvent
 	for _, eventID := range merkliste {
-		elphiEvent, err = m.GetElphiEvent(eventID)
+		elphiEvent, err = m.GetElphiEvent(ctx, eventID)
 		if err != nil {
 			return nil, err
 		}
-		icsEvent, err = m.GetICSEvent(elphiEvent)
+		icsEvent, err = m.GetICSEvent(ctx, elphiEvent)
 		if err != nil {
 			return nil, err
 		}
