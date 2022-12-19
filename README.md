@@ -32,7 +32,7 @@ The Elbphilharmonie favorite lists of every user is accessible without authentic
 - Run the following command that will print your account ID:
   ```shell
   ACTIVITY_ID=<your activity ID>
-  curl -sS 'https://shop-services.elbphilharmonie.de/Activities/validateactivityid.json?ActivityId=$ACTIVITY_ID' | jq -r .User.UserId
+  curl -sS "https://shop-services.elbphilharmonie.de/Activities/validateactivityid.json?ActivityId=$ACTIVITY_ID" | jq -r .User.UserId
   ```
 
 ## Caching
