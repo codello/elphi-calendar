@@ -27,7 +27,7 @@ The Elbphilharmonie favorite lists of every user is accessible without authentic
 
 - Open your web browser, go to [Your Account](https://shop.elbphilharmonie.de/de/meine-daten/).
 
-- Open the JavaScript Console and enter `elbphilharmonie.ActivityId`. This will display an activity id in your console. Copy the value (whithout quotes).
+- Open the JavaScript Console and enter `elbphilharmonie.WebshopApi.getActivityId()`. This will display an activity id in your console. Copy the value (whithout quotes).
 
 - Run the following command that will print your account ID:
   ```shell
