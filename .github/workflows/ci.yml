@@ -26,6 +26,7 @@ jobs:
     with:
       packages: ./cmd/elphi-calendar
       platforms: linux/amd64,linux/arm64,linux/arm,linux/386
+      ldflags: -w -s -X "main.Version=${{ github.ref_type == 'tag' && github.ref_name || '' }}"
 
   publish:
     name: Publish

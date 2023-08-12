@@ -19,3 +19,4 @@ go.work
 
 # Binaries
 /elphi-calendar
+/build
