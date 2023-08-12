@@ -1,0 +1,39 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+    tags: [ "*" ]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: codello/.github/.github/workflows/go-lint.yml@v0
+
+  test:
+    name: Test
+    uses: codello/.github/.github/workflows/go-test.yml@v0
+
+  build:
+    name: Build
+    uses: codello/.github/.github/workflows/go-build.yml@v0
+    with:
+      packages: ./cmd/elphi-calendar
+      platforms: linux/amd64,linux/arm64,linux/arm,linux/386
+
+  publish:
+    name: Publish
+    if: ${{ github.event_name == 'push' }}
+    needs: [ test, build ]
+    permissions:
+      contents: read
+      packages: write
+    uses: codello/.github/.github/workflows/docker-publish.yml@v0
+    with:
+      platforms: linux/amd64,linux/arm64,linux/arm,linux/386

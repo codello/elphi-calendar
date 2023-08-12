@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"os"
 
-	flags "github.com/jessevdk/go-flags"
+	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/codello/elphi-calendar/pkg/merkliste"
+	"codello.dev/elphi-calendar/pkg/merkliste"
 )
 
 // main is the main entrypoint of the program.

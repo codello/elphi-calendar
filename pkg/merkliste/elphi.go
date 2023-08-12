@@ -11,10 +11,10 @@ import (
 	"time"
 
 	ics "github.com/arran4/golang-ical"
-	ttlcache "github.com/jellydator/ttlcache/v3"
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/codello/elphi-calendar/pkg/metrics"
+	"codello.dev/elphi-calendar/pkg/metrics"
 )
 
 var (
