@@ -1,6 +1,6 @@
 # Elphi Calendar
 
-![Docker Image](https://github.com/codello/elphi-calendar/actions/workflows/build.yml/badge.svg)![MIT License](https://img.shields.io/github/license/codello/elphi-calendar)
+[![CI](https://github.com/codello/elphi-calendar/actions/workflows/ci.yml/badge.svg)](https://github.com/codello/elphi-calendar/actions/workflows/ci.yml)
 
 This simple Go server generates an ICS version of your favorites for the [Elbphilharmonie](http://elbphilharmonie.de).
 
