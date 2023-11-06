@@ -6,7 +6,7 @@ require (
 	github.com/arran4/golang-ical v0.1.0
 	github.com/jellydator/ttlcache/v3 v3.1.0
 	github.com/prometheus/client_golang v1.17.0
-	github.com/spf13/cobra v1.7.0
+	github.com/spf13/cobra v1.8.0
 )
 
 require (
