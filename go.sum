@@ -10,6 +10,8 @@ github.com/arran4/golang-ical v0.2.3 h1:C4Vj7+BjJBIrAJhHgi6Ku+XUkQVugRq4re5Cqj5Q
 github.com/arran4/golang-ical v0.2.3/go.mod h1:RqMuPGmwRRwjkb07hmm+JBqcWa1vF1LvVmPtSZN2OhQ=
 github.com/arran4/golang-ical v0.2.4 h1:0/rTXn2qqEekLKec3SzRRy+z7pCLtniMb0KD/dPogUo=
 github.com/arran4/golang-ical v0.2.4/go.mod h1:RqMuPGmwRRwjkb07hmm+JBqcWa1vF1LvVmPtSZN2OhQ=
+github.com/arran4/golang-ical v0.2.5 h1:zaAdee/cOnOCeSuxUSgkWnF9jZl/oYq2ZgDk+LU3wGs=
+github.com/arran4/golang-ical v0.2.5/go.mod h1:RqMuPGmwRRwjkb07hmm+JBqcWa1vF1LvVmPtSZN2OhQ=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.2.0 h1:DC2CZ1Ep5Y4k3ZQ899DldepgrayRUGE6BBZ/cd9Cj44=
