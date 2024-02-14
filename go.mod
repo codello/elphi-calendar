@@ -1,6 +1,6 @@
 module codello.dev/elphi-calendar
 
-go 1.21.6
+go 1.22.0
 
 require (
 	github.com/arran4/golang-ical v0.2.5
