@@ -3,7 +3,7 @@ module codello.dev/elphi-calendar
 go 1.22.0
 
 require (
-	github.com/arran4/golang-ical v0.2.5
+	github.com/arran4/golang-ical v0.2.6
 	github.com/jellydator/ttlcache/v3 v3.1.1
 	github.com/prometheus/client_golang v1.18.0
 	github.com/spf13/cobra v1.8.0
