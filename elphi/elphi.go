@@ -1,4 +1,4 @@
-package merkliste
+package elphi
 
 import (
 	"context"
@@ -12,9 +12,6 @@ import (
 
 	ics "github.com/arran4/golang-ical"
 	"github.com/jellydator/ttlcache/v3"
-	"github.com/prometheus/client_golang/prometheus"
-
-	"codello.dev/elphi-calendar/pkg/metrics"
 )
 
 var (
@@ -31,9 +28,9 @@ var (
 	ErrMultipleEvents = errors.New("invalid ics file (multiple events)")
 )
 
-// ElphiEvent corresponds to an event as returned by the Elbphilharmonie REST
+// Event corresponds to an event as returned by the Elbphilharmonie REST
 // API.
-type ElphiEvent struct {
+type Event struct {
 	ID               string `json:"evis_id"`
 	Title            string `json:"title_de"`
 	Subtitle         string `json:"subtitle_de"`
@@ -49,7 +46,7 @@ type ElphiEvent struct {
 	HTML             string `json:"item_html"`
 }
 
-// GetMerkliste returns the merkliste (favorites list) of the user with the
+// GetMerkliste returns the elphi (favorites list) of the user with the
 // specified ID. This function returns a list of event IDs.
 func GetMerkliste(ctx context.Context, userID string) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://merkliste.elbphilharmonie.de/api/"+userID, nil)
@@ -84,11 +81,11 @@ func GetMerkliste(ctx context.Context, userID string) ([]string, error) {
 	return events, nil
 }
 
-// GetElphiEvent fetches the event with the specified ID from the
+// GetEvent fetches the event with the specified ID from the
 // Elbphilharmonie API.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
+func GetEvent(ctx context.Context, eventID string) (*Event, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.elbphilharmonie.de/de/api/booking/evis/"+url.PathEscape(eventID)+"/", nil)
 	if err != nil {
 		return nil, err
@@ -105,7 +102,7 @@ func GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
 		return nil, ErrInvalidEventID
 	}
 	decoder := json.NewDecoder(resp.Body)
-	event := &ElphiEvent{}
+	event := &Event{}
 	err = decoder.Decode(event)
 	if err != nil {
 		return nil, err
@@ -116,7 +113,7 @@ func GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
 // GetICSEvent fetches the iCal event for the specified event.
 //
 // For a cached variant of this method see CachedMerkliste.
-func GetICSEvent(ctx context.Context, event *ElphiEvent) (*ics.VEvent, error) {
+func GetICSEvent(ctx context.Context, event *Event) (*ics.VEvent, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, event.WebsiteURL+".ics", nil)
 	if err != nil {
 		return nil, err
@@ -147,10 +144,9 @@ func GetICSEvent(ctx context.Context, event *ElphiEvent) (*ics.VEvent, error) {
 
 // fixupEvent performs some cleanup operations on an event returned by the
 // Elbphilharmonie to make for a nicer formatting.
-func fixupEvent(icsEvent *ics.VEvent, elphiEvent *ElphiEvent) {
+func fixupEvent(icsEvent *ics.VEvent, elphiEvent *Event) {
 	id := icsEvent.GetProperty(ics.ComponentPropertyUniqueId).Value
 	icsEvent.SetProperty(ics.ComponentPropertyUniqueId, "custom-"+id)
-	println(icsEvent.GetProperty(ics.ComponentPropertyUniqueId).Value)
 	icsEvent.SetSummary(elphiEvent.Subtitle)
 	description := icsEvent.GetProperty(ics.ComponentPropertyDescription).Value
 	icsEvent.SetDescription(elphiEvent.Title + "\n\n" + strings.ReplaceAll(description, "\\n", "\n"))
@@ -166,10 +162,10 @@ func GetCalendar(ctx context.Context, userID string, productID string, name stri
 	if err != nil {
 		return nil, err
 	}
-	var elphiEvent *ElphiEvent
+	var elphiEvent *Event
 	var icsEvent *ics.VEvent
 	for _, eventID := range merkliste {
-		elphiEvent, err = GetElphiEvent(ctx, eventID)
+		elphiEvent, err = GetEvent(ctx, eventID)
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +193,7 @@ func newCalendar(productID string, name string) *ics.Calendar {
 // events on the Elbphilharmonie API.
 type CachedMerkliste struct {
 	TTL        time.Duration
-	EventCache *ttlcache.Cache[string, *ElphiEvent]
+	EventCache *ttlcache.Cache[string, *Event]
 	ICSCache   *ttlcache.Cache[string, *ics.VEvent]
 	ProductID  string
 	Name       string
@@ -205,11 +201,11 @@ type CachedMerkliste struct {
 
 // NewCachedMerkliste creates a new CachedMerkliste with the specified cache TTL.
 func NewCachedMerkliste(ttl time.Duration) *CachedMerkliste {
-	m := &CachedMerkliste{
+	return &CachedMerkliste{
 		TTL: ttl,
-		EventCache: ttlcache.New[string, *ElphiEvent](
-			ttlcache.WithTTL[string, *ElphiEvent](ttl),
-			ttlcache.WithDisableTouchOnHit[string, *ElphiEvent](),
+		EventCache: ttlcache.New[string, *Event](
+			ttlcache.WithTTL[string, *Event](ttl),
+			ttlcache.WithDisableTouchOnHit[string, *Event](),
 		),
 		ICSCache: ttlcache.New[string, *ics.VEvent](
 			ttlcache.WithTTL[string, *ics.VEvent](ttl),
@@ -218,7 +214,6 @@ func NewCachedMerkliste(ttl time.Duration) *CachedMerkliste {
 		ProductID: "",
 		Name:      "",
 	}
-	return m
 }
 
 // StartCacheExpiration begins the automatic cache expiration.
@@ -233,27 +228,13 @@ func (m *CachedMerkliste) StopCacheExpiration() {
 	m.ICSCache.Stop()
 }
 
-// RegisterMetrics adds caching metrics to the global prometheus registry.
-func (m *CachedMerkliste) RegisterMetrics(variableLabels []string, staticLabels prometheus.Labels) {
-	eventLabels := prometheus.Labels{}
-	icsLabels := prometheus.Labels{}
-	for k, v := range staticLabels {
-		eventLabels[k] = v
-		icsLabels[k] = v
-	}
-	eventLabels["cache"] = "events"
-	icsLabels["cache"] = "ics"
-	prometheus.MustRegister(metrics.NewCacheCollector(m.EventCache, "merkliste_", variableLabels, eventLabels))
-	prometheus.MustRegister(metrics.NewCacheCollector(m.ICSCache, "merkliste_", variableLabels, icsLabels))
-}
-
-// GetElphiEvent performs a cached request for the specified event. Behind the
-// scenes this method uses the GetElphiEvent function.
-func (m *CachedMerkliste) GetElphiEvent(ctx context.Context, eventID string) (*ElphiEvent, error) {
+// GetEvent performs a cached request for the specified event. Behind the
+// scenes this method uses the GetEvent function.
+func (m *CachedMerkliste) GetEvent(ctx context.Context, eventID string) (*Event, error) {
 	if item := m.EventCache.Get(eventID); item != nil {
 		return item.Value(), nil
 	}
-	event, err := GetElphiEvent(ctx, eventID)
+	event, err := GetEvent(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +244,7 @@ func (m *CachedMerkliste) GetElphiEvent(ctx context.Context, eventID string) (*E
 
 // GetICSEvent performs a cached request for the specified ICS file. Behind the
 // scenes this method uses the GetICSEvent function.
-func (m *CachedMerkliste) GetICSEvent(ctx context.Context, event *ElphiEvent) (*ics.VEvent, error) {
+func (m *CachedMerkliste) GetICSEvent(ctx context.Context, event *Event) (*ics.VEvent, error) {
 	if item := m.ICSCache.Get(event.ID); item != nil {
 		return item.Value(), nil
 	}
@@ -275,21 +256,22 @@ func (m *CachedMerkliste) GetICSEvent(ctx context.Context, event *ElphiEvent) (*
 	return icsEvent, nil
 }
 
-// GetCalendar creates an iCal calendar with the merkliste events of the
+// GetCalendar creates an iCal calendar with the elphi events of the
 // specified user. This works similarly to the GetCalendar function.
 func (m *CachedMerkliste) GetCalendar(ctx context.Context, userID string) (*ics.Calendar, error) {
-	cal := m.newCalendar()
 	merkliste, err := GetMerkliste(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
+	cal := newCalendar(m.ProductID, m.Name)
+	cal.SetRefreshInterval("P" + strings.ToUpper(m.TTL.String()))
 	// Unfortunately we cannot parallelize this as the Elphi API locks up at too
 	// many parallel requests.
-	var elphiEvent *ElphiEvent
+	var elphiEvent *Event
 	var icsEvent *ics.VEvent
 	for _, eventID := range merkliste {
-		elphiEvent, err = m.GetElphiEvent(ctx, eventID)
+		elphiEvent, err = m.GetEvent(ctx, eventID)
 		if err != nil {
 			return nil, err
 		}
@@ -300,12 +282,4 @@ func (m *CachedMerkliste) GetCalendar(ctx context.Context, userID string) (*ics.
 		cal.AddVEvent(icsEvent)
 	}
 	return cal, nil
-}
-
-// newCalendar creates a new calendar object using the properties of the
-// merkliste.
-func (m *CachedMerkliste) newCalendar() *ics.Calendar {
-	cal := newCalendar(m.ProductID, m.Name)
-	cal.SetRefreshInterval("P" + strings.ToUpper(m.TTL.String()))
-	return cal
 }

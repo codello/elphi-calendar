@@ -1,4 +1,4 @@
-package merkliste
+package elphi
 
 import (
 	"context"
@@ -12,18 +12,16 @@ import (
 // The ErrorLogger is used to log errors.
 var ErrorLogger = log.New(os.Stdout, "", log.LstdFlags)
 
-// CalendarHandler provides an HTTP endpoint for the merkliste calendar. This
+// CalendarHandler provides an HTTP endpoint for the elphi calendar. This
 // implements http.Handler.
 type CalendarHandler struct {
-	Prefix    string
 	Merkliste *CachedMerkliste
 }
 
-// ServeHTTP implements an iCal HTTP endpoint providing events from a merkliste.
+// ServeHTTP implements an iCal HTTP endpoint providing events from a elphi.
 func (h *CalendarHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	components := strings.Split(req.URL.Path, "/")
-	userID := strings.TrimSuffix(components[len(components)-1], ".ics")
+	userID := strings.TrimSuffix(req.PathValue("userID"), ".ics")
 	cal, err := h.Merkliste.GetCalendar(ctx, userID)
 	if errors.Is(err, context.Canceled) {
 		return
@@ -44,15 +42,14 @@ func (h *CalendarHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // EventHandler provides an HTTP endpoint for a calendar containing a single
 // event. This implements http.Handler.
 type EventHandler struct {
-	Prefix    string
 	Merkliste *CachedMerkliste
 }
 
 // ServeHTTP implements an iCal HTTP endpoint providing single Elphi events.
 func (h *EventHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	eventID := strings.TrimPrefix(req.URL.Path, h.Prefix)
-	elphiEvent, err := h.Merkliste.GetElphiEvent(ctx, eventID)
+	eventID := req.PathValue("id")
+	elphiEvent, err := h.Merkliste.GetEvent(ctx, eventID)
 	if errors.Is(err, context.Canceled) {
 		return
 	}
@@ -74,7 +71,9 @@ func (h *EventHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
 		return
 	}
-	cal := h.Merkliste.newCalendar()
+
+	cal := newCalendar(h.Merkliste.ProductID, h.Merkliste.Name)
+	cal.SetRefreshInterval("P" + strings.ToUpper(h.Merkliste.TTL.String()))
 	cal.AddVEvent(icsEvent)
 	w.Header().Set("Content-Type", "text/calendar")
 	cal.SerializeTo(w)
