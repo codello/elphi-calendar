@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	github.com/arran4/golang-ical v0.3.1
 	github.com/jellydator/ttlcache/v3 v3.2.0
-	github.com/prometheus/client_golang v1.20.0
+	github.com/prometheus/client_golang v1.20.1
 	github.com/spf13/cobra v1.8.1
 )
 
